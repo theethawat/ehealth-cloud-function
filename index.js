@@ -12,37 +12,37 @@ let db = admin.firestore()
 
 exports.addAgeToBP = functions.firestore
   .document("/blood_pressure/{userUUID}")
-  .onWrite((change, context) => {
-    const newData = change.after.data()
+  .onCreate((snap, context) => {
+    const newData = snap.data()
     let ownerUUID = newData.ownerUUID
-    let birthDay, birthMonth, birthYear
+    let birthYear
     let age = 0
-    db.collection(user)
+    let id = snap.id
+
+    console.log("OwnerUUID" + ownerUUID)
+
+    db.collection("user")
       .where("inputProgramUser", "==", ownerUUID)
       .limit(1)
       .get()
       .then(snapshot => {
+        if (snapshot.empty) {
+          console.log("Data in User Table is Empty")
+        }
         snapshot.forEach(doc => {
           let userCollectionData = doc.data()
-          birthDay = userCollectionData.bDay
-          birthMonth = userCollectionData.bMonth
           birthYear = userCollectionData.bYear
         })
-        age = moment
-          .duration({
-            days: birthDay,
-            months: birthMonth,
-            years: birthYear
+        let date = Date()
+        age = date.getFullYear() - birthYear
+        db.collection("blood_pressure")
+          .doc(id)
+          .update({
+            age: age
           })
-          .years()
+        return Promise
       })
       .catch(err => {
         console.log(err)
       })
-    return change.after.ref.set(
-      {
-        userAge: age
-      },
-      { merge: true }
-    )
   })
